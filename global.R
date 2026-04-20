@@ -125,6 +125,11 @@ month_choices <- setNames(
   format(lca_data$date, "%B %Y")
 )
 
+# ── Color palette ──────────────────────────────────────────────────────────────
+col_waste      <- col_co2_waste  <- "#A9AEC4"
+col_larvae     <- col_co2_feed   <- "#CA6D3C"
+col_fertilizer <- col_co2_fert   <- "#EFC8EA"
+
 # ── Charts ─────────────────────────────────────────────────────────────────────
 
 theme_dash <- function() {
@@ -138,8 +143,8 @@ theme_dash <- function() {
       panel.grid.minor   = element_blank(),
       axis.text          = element_text(color = "#333333", size = 12),
       axis.title         = element_text(color = "#111111", size = 14, face = "bold"),
-      plot.title         = element_text(color = "#111111", size = 15, hjust = 0.5,
-                                        lineheight = 1.2, margin = margin(b = 10)),
+      plot.title         = element_text(color = "#111111", size = 15, face = "bold",
+                                        hjust = 0.5, lineheight = 1.2, margin = margin(b = 10)),
       plot.margin        = margin(12, 16, 12, 16)
     )
 }
@@ -150,6 +155,25 @@ make_bar_chart <- function(data, y_col, title, fill_color, y_label = "KG") {
   ggplot(plot_data, aes(x = reorder(format(date, "%b '%y"), date), y = .data[[y_col]])) +
     geom_col(fill = fill_color, color = "#555555", alpha = 0.8, width = 0.7) +
     scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.05))) +
+    labs(title = title, x = "Month", y = y_label) +
+    theme_dash() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+make_cumulative_chart <- function(data, y_col, title, line_color, y_label = "KG") {
+  plot_data <- data |>
+    filter(!is.na(.data[[y_col]])) |>
+    arrange(date) |>
+    mutate(
+      cumval      = cumsum(.data[[y_col]]),
+      month_label = reorder(format(date, "%b '%y"), date)
+    )
+
+  ggplot(plot_data, aes(x = month_label, y = cumval, group = 1)) +
+    geom_area(fill = line_color, alpha = 0.15) +
+    geom_line(color = line_color, linewidth = 1.4) +
+    geom_point(color = line_color, fill = "white", shape = 21, size = 3.5, stroke = 2) +
+    scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.1))) +
     labs(title = title, x = "Month", y = y_label) +
     theme_dash() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))

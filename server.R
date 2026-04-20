@@ -24,10 +24,28 @@ server <- function(input, output, session) {
   lbl1 <- reactive({ range_label(input$start1, input$end1) })
   lbl2 <- reactive({ range_label(input$start2, input$end2) })
 
+  # ── CSV download ────────────────────────────────────────────────────────────
+  output$dl_csv <- downloadHandler(
+    filename = function() {
+      if (input$active_tab == "Farm Production") {
+        s <- format(as.Date(input$start1), "%b%Y")
+        e <- format(as.Date(input$end1),   "%b%Y")
+      } else {
+        s <- format(as.Date(input$start2), "%b%Y")
+        e <- format(as.Date(input$end2),   "%b%Y")
+      }
+      paste0("lca_data_", s, "_to_", e, ".csv")
+    },
+    content = function(file) {
+      data <- if (input$active_tab == "Farm Production") dat1() else dat2()
+      write.csv(data, file, row.names = FALSE)
+    }
+  )
+
   # ── Tab 1: stat card labels ─────────────────────────────────────────────────
-  output$lbl_waste1      <- renderText(paste0("Total farm waste processed, ",      lbl1()))
-  output$lbl_larvae1     <- renderText(paste0("Total farm larvae produced, ",       lbl1()))
-  output$lbl_fertilizer1 <- renderText(paste0("Total farm fertilizer produced, ",   lbl1()))
+  output$lbl_waste1      <- renderText(paste0("Total waste processed, ",      lbl1()))
+  output$lbl_larvae1     <- renderText(paste0("Total larvae produced, ",       lbl1()))
+  output$lbl_fertilizer1 <- renderText(paste0("Total fertilizer produced, ",   lbl1()))
 
   # ── Tab 1: stat card values ─────────────────────────────────────────────────
   output$val_waste1      <- renderText(paste0(comma(sum(dat1()$kg_waste_processed,    na.rm=TRUE), accuracy=1), " kg"))
@@ -36,13 +54,25 @@ server <- function(input, output, session) {
 
   # ── Tab 1: plots ────────────────────────────────────────────────────────────
   output$plot_waste <- renderPlot({
-    make_bar_chart(dat1(), "kg_waste_processed", "Monthly waste processed", "#4a7ca3")
+    if (input$view_mode1 == "monthly") {
+      make_bar_chart(dat1(), "kg_waste_processed", "Monthly waste processed", col_waste)
+    } else {
+      make_cumulative_chart(dat1(), "kg_waste_processed", "Cumulative waste processed", col_waste)
+    }
   }, res = 96)
   output$plot_larvae <- renderPlot({
-    make_bar_chart(dat1(), "kg_larvae_produced", "Monthly larvae produced", "#2d5a27")
+    if (input$view_mode1 == "monthly") {
+      make_bar_chart(dat1(), "kg_larvae_produced", "Monthly larvae produced", col_larvae)
+    } else {
+      make_cumulative_chart(dat1(), "kg_larvae_produced", "Cumulative larvae produced", col_larvae)
+    }
   }, res = 96)
   output$plot_fertilizer <- renderPlot({
-    make_bar_chart(dat1(), "kg_fertilizer_produced", "Monthly fertilizer produced", "#8b4513")
+    if (input$view_mode1 == "monthly") {
+      make_bar_chart(dat1(), "kg_fertilizer_produced", "Monthly fertilizer produced", col_fertilizer)
+    } else {
+      make_cumulative_chart(dat1(), "kg_fertilizer_produced", "Cumulative fertilizer produced", col_fertilizer)
+    }
   }, res = 96)
 
   # ── Tab 2: stat card labels ─────────────────────────────────────────────────
@@ -69,10 +99,14 @@ server <- function(input, output, session) {
     if (input$chart_mode == "averted") {
       make_bar_chart(dat2(), "averted_co2_waste",
                      "Monthly CO\u2082 avoided via\nwaste averted from landfill",
-                     "#b07ec8", y_label = "KG CO\u2082")
-    } else {
+                     col_co2_waste, y_label = "KG CO\u2082")
+    } else if (input$chart_mode == "comparison") {
       make_comparison_chart(dat2(), "conventional_co2_waste", "bsf_co2_waste",
-                            "Monthly CO\u2082: waste\n(conventional vs BSF)", "#b07ec8")
+                            "Monthly CO\u2082: waste\n(conventional vs BSF)", col_co2_waste)
+    } else {
+      make_cumulative_chart(dat2(), "averted_co2_waste",
+                            "Cumulative CO\u2082 avoided via\nwaste averted from landfill",
+                            col_co2_waste, y_label = "KG CO\u2082")
     }
   }, res = 96)
 
@@ -80,10 +114,14 @@ server <- function(input, output, session) {
     if (input$chart_mode == "averted") {
       make_bar_chart(dat2(), "averted_co2_feed",
                      "Monthly CO\u2082 avoided via\nanimal feed not imported",
-                     "#2d4a7a", y_label = "KG CO\u2082")
-    } else {
+                     col_co2_feed, y_label = "KG CO\u2082")
+    } else if (input$chart_mode == "comparison") {
       make_comparison_chart(dat2(), "conventional_co2_feed", "bsf_co2_feed",
-                            "Monthly CO\u2082: feed\n(conventional vs BSF)", "#2d4a7a")
+                            "Monthly CO\u2082: feed\n(conventional vs BSF)", col_co2_feed)
+    } else {
+      make_cumulative_chart(dat2(), "averted_co2_feed",
+                            "Cumulative CO\u2082 avoided via\nanimal feed not imported",
+                            col_co2_feed, y_label = "KG CO\u2082")
     }
   }, res = 96)
 
@@ -91,10 +129,14 @@ server <- function(input, output, session) {
     if (input$chart_mode == "averted") {
       make_bar_chart(dat2(), "averted_co2_fertilizer",
                      "Monthly CO\u2082 avoided via\nchemical fertilizer not used",
-                     "#e09b00", y_label = "KG CO\u2082")
-    } else {
+                     col_co2_fert, y_label = "KG CO\u2082")
+    } else if (input$chart_mode == "comparison") {
       make_comparison_chart(dat2(), "conventional_co2_fertilizer", "bsf_co2_fertilizer",
-                            "Monthly CO\u2082: fertilizer\n(conventional vs BSF)", "#e09b00")
+                            "Monthly CO\u2082: fertilizer\n(conventional vs BSF)", col_co2_fert)
+    } else {
+      make_cumulative_chart(dat2(), "averted_co2_fertilizer",
+                            "Cumulative CO\u2082 avoided via\nchemical fertilizer not used",
+                            col_co2_fert, y_label = "KG CO\u2082")
     }
   }, res = 96)
 
