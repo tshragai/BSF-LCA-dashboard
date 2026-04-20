@@ -10,9 +10,6 @@ library(shinyWidgets)
 library(ggplot2)
 library(scales)
 
-# Authenticate with Google Drive (opens browser on first run)
-drive_auth()
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 read_cell <- function(path, cell) {
@@ -49,50 +46,53 @@ add_calculated_cols <- function(df) {
   )
 }
 
-# ── Smart data loading ─────────────────────────────────────────────────────────
+# ── Data loading ───────────────────────────────────────────────────────────────
+# Tries to sync new months from Google Drive. If auth fails (e.g. on shinyapps.io),
+# falls back silently to the bundled outputs/lca_data.csv.
 
-# Months already saved locally
-existing_months <- if (file.exists("outputs/lca_data.csv")) {
-  read.csv("outputs/lca_data.csv")$month_year
-} else {
-  character(0)
-}
+tryCatch({
+  drive_auth(cache = ".secrets", email = "tshragai@gmail.com")
 
-# All files in Drive
-drive_files <- drive_find(
-  q = c("'1DOguXcDo9dGf37XjlciUMkENQV00XmoU' in parents", "trashed = false"),
-  pattern                   = "BSFfarmLCA_",
-  includeItemsFromAllDrives = TRUE,
-  supportsAllDrives         = TRUE
-)
-
-# Which Drive files represent months not yet in the local CSV
-drive_months <- str_match(drive_files$name, "BSFfarmLCA_(\\d{2})_(\\d{4})")
-drive_months  <- paste0(drive_months[, 2], "-", drive_months[, 3])
-new_files     <- drive_files[!drive_months %in% existing_months, ]
-
-if (nrow(new_files) > 0) {
-  message("Downloading ", nrow(new_files), " new file(s) from Drive...")
-
-  new_rows <- map_dfr(seq_len(nrow(new_files)), \(i) parse_lca_file(new_files[i, ])) |>
-    add_calculated_cols()
-
-  lca_data <- if (length(existing_months) > 0) {
-    read.csv("outputs/lca_data.csv") |>
-      mutate(date = as.Date(date)) |>
-      bind_rows(new_rows) |>
-      arrange(date)
+  existing_months <- if (file.exists("outputs/lca_data.csv")) {
+    read.csv("outputs/lca_data.csv")$month_year
   } else {
-    new_rows |> arrange(date)
+    character(0)
   }
 
-  write.csv(lca_data, "outputs/lca_data.csv", row.names = FALSE)
-  message("outputs/lca_data.csv updated.")
+  drive_files  <- drive_find(
+    q = c("'1DOguXcDo9dGf37XjlciUMkENQV00XmoU' in parents", "trashed = false"),
+    pattern                   = "BSFfarmLCA_",
+    includeItemsFromAllDrives = TRUE,
+    supportsAllDrives         = TRUE
+  )
 
-} else {
-  message("No new Drive files — loading from outputs/lca_data.csv")
-  lca_data <- read.csv("outputs/lca_data.csv") |> mutate(date = as.Date(date))
-}
+  drive_months <- str_match(drive_files$name, "BSFfarmLCA_(\\d{2})_(\\d{4})")
+  drive_months <- paste0(drive_months[, 2], "-", drive_months[, 3])
+  new_files    <- drive_files[!drive_months %in% existing_months, ]
+
+  if (nrow(new_files) > 0) {
+    message("Downloading ", nrow(new_files), " new file(s) from Drive...")
+    new_rows <- map_dfr(seq_len(nrow(new_files)), \(i) parse_lca_file(new_files[i, ])) |>
+      add_calculated_cols()
+    lca_data <- if (length(existing_months) > 0) {
+      read.csv("outputs/lca_data.csv") |>
+        mutate(date = as.Date(date)) |>
+        bind_rows(new_rows) |>
+        arrange(date)
+    } else {
+      new_rows |> arrange(date)
+    }
+    write.csv(lca_data, "outputs/lca_data.csv", row.names = FALSE)
+    message("outputs/lca_data.csv updated.")
+  } else {
+    message("No new Drive files — loading from outputs/lca_data.csv")
+    lca_data <- read.csv("outputs/lca_data.csv") |> mutate(date = as.Date(date))
+  }
+
+}, error = function(e) {
+  message("Drive sync unavailable (", conditionMessage(e), ") — loading from outputs/lca_data.csv")
+  lca_data <<- read.csv("outputs/lca_data.csv") |> mutate(date = as.Date(date))
+})
 
 # ── Lifetime totals ────────────────────────────────────────────────────────────
 
@@ -126,9 +126,9 @@ month_choices <- setNames(
 )
 
 # ── Color palette ──────────────────────────────────────────────────────────────
-col_waste      <- col_co2_waste  <- "#A9AEC4"
-col_larvae     <- col_co2_feed   <- "#CA6D3C"
-col_fertilizer <- col_co2_fert   <- "#EFC8EA"
+col_waste      <- col_co2_waste  <- "#0D6B7A"  # Deep teal
+col_larvae     <- col_co2_feed   <- "#C47D1A"  # Warm amber
+col_fertilizer <- col_co2_fert   <- "#8A2D6B"  # Berry/plum
 
 # ── Charts ─────────────────────────────────────────────────────────────────────
 
@@ -137,15 +137,15 @@ theme_dash <- function() {
     theme(
       plot.background    = element_rect(fill = "white", color = NA),
       panel.background   = element_rect(fill = "white", color = NA),
-      panel.border       = element_rect(color = "#333333", fill = NA, linewidth = 0.8),
-      panel.grid.major.y = element_line(color = "#eeeeee", linewidth = 0.5),
+      panel.border       = element_rect(color = "#dddddd", fill = NA, linewidth = 0.8),
+      panel.grid.major.y = element_line(color = "#f0f0f0", linewidth = 0.5),
       panel.grid.major.x = element_blank(),
       panel.grid.minor   = element_blank(),
-      axis.text          = element_text(color = "#333333", size = 12),
-      axis.title         = element_text(color = "#111111", size = 14, face = "bold"),
-      plot.title         = element_text(color = "#111111", size = 15, face = "bold",
-                                        hjust = 0.5, lineheight = 1.2, margin = margin(b = 10)),
-      plot.margin        = margin(12, 16, 12, 16)
+      axis.text          = element_text(color = "#555555", size = 12),
+      axis.title         = element_text(color = "#333333", size = 13, face = "bold"),
+      plot.title         = element_text(color = "#111111", size = 14, face = "bold",
+                                        hjust = 0, lineheight = 1.3, margin = margin(b = 12)),
+      plot.margin        = margin(16, 20, 12, 16)
     )
 }
 

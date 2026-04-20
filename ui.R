@@ -8,6 +8,10 @@ stat_card <- function(label_id, value_id, value_color) {
   )
 }
 
+chart_card <- function(...) {
+  div(class = "chart-card", ...)
+}
+
 date_selector <- function(start_id, end_id) {
   fluidRow(
     column(6, selectInput(start_id, "From:", choices = month_choices,
@@ -21,36 +25,124 @@ ui <- navbarPage(
   id    = "active_tab",
   title = "BSF Farm LCA Dashboard",
 
-  tags$head(tags$style(HTML("
-    body           { background-color: #ffffff; font-family: sans-serif; }
-    .navbar        { background-color: #ffffff !important; border-bottom: 2px solid #222; }
-    .navbar-brand  { font-size: 24px; font-weight: 700; color: #111 !important; }
-    .nav > li > a  { font-size: 15px; font-weight: 600; color: #333 !important; }
+  tags$head(
+    tags$link(rel = "stylesheet",
+      href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"),
 
-    .section-title { font-size: 26px; font-weight: 700; color: #111;
-                     text-align: center; padding: 12px 0 16px; }
+    tags$style(HTML("
 
-    .grand-total   { font-size: 22px; font-weight: 700; color: #111;
-                     text-align: center; padding: 0 0 20px; }
+      /* ── Base ── */
+      body, .navbar, h1, h2, h3, h4, label, .selectize-input {
+        font-family: 'Inter', sans-serif !important;
+      }
+      body { background-color: #f8f7f5; }
 
-    .stat-card     { text-align: center; padding: 10px 10px 24px; }
-    .stat-label    { font-size: 20px; font-weight: 700; color: #333; margin-bottom: 10px; line-height: 1.4; }
-    .stat-value    { font-size: 36px; font-weight: 700; margin: 0; }
+      /* ── Navbar ── */
+      .navbar {
+        background-color: #ffffff !important;
+        border-bottom: 2px solid #0D6B7A;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      }
+      .navbar-brand {
+        font-size: 22px; font-weight: 700; color: #111 !important;
+        letter-spacing: -0.3px;
+      }
+      .nav > li > a {
+        font-size: 14px; font-weight: 600; color: #444 !important;
+        letter-spacing: 0.1px;
+      }
+      .nav > li.active > a, .nav > li.active > a:focus {
+        color: #111 !important; background: transparent !important;
+        border-bottom: 2px solid #111;
+      }
 
-    .toggle-wrap   { text-align: center; padding-bottom: 16px; }
+      /* ── Section titles ── */
+      .section-title {
+        font-size: 26px; font-weight: 700; color: #111;
+        text-align: center; padding: 24px 0 20px;
+        letter-spacing: -0.4px;
+      }
+      .grand-total {
+        font-size: 20px; font-weight: 600; color: #333;
+        text-align: center; padding: 0 0 28px; letter-spacing: -0.2px;
+      }
 
-    .date-select   { padding: 16px 20px 4px; }
+      /* ── Stat cards ── */
+      .stat-card {
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+        text-align: center;
+        padding: 28px 20px 32px;
+        margin: 0 6px 20px;
+      }
+      .stat-label {
+        font-size: 16px; font-weight: 600; color: #666;
+        margin-bottom: 14px; line-height: 1.5;
+      }
+      .stat-value { font-size: 40px; font-weight: 700; margin: 0; line-height: 1; }
 
-    #dl_csv        { position: fixed; top: 10px; right: 20px; z-index: 9999;
-                     background: #333; color: white; border: none;
-                     font-weight: 600; font-size: 13px; padding: 6px 14px;
-                     border-radius: 4px; }
-    #dl_csv:hover  { background: #555; }
+      /* ── Chart cards ── */
+      .chart-card {
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+        padding: 8px 4px 4px;
+        margin: 0 4px 16px;
+      }
 
-    .info-box      { margin: 24px 16px 8px; padding: 16px 24px;
-                     border-left: 4px solid #aaa; color: #555; font-size: 14px;
-                     font-style: italic; background: #fafafa; }
-  "))),
+      /* ── Toggles ── */
+      .toggle-wrap { text-align: center; padding: 8px 0 28px; }
+      .toggle-wrap .btn-group {
+        border-radius: 50px;
+        overflow: hidden;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+      }
+      .toggle-wrap .btn-group > .btn {
+        border-radius: 0 !important;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600; font-size: 13px;
+        padding: 9px 24px; border: none;
+        transition: background 0.15s, color 0.15s;
+      }
+      .toggle-wrap .btn-group > .btn:first-child {
+        border-radius: 50px 0 0 50px !important;
+      }
+      .toggle-wrap .btn-group > .btn:last-child  {
+        border-radius: 0 50px 50px 0 !important;
+      }
+      .toggle-wrap .btn-default           { background: #ffffff; color: #555; }
+      .toggle-wrap .btn-default.active,
+      .toggle-wrap .btn-default:active    { background: #222; color: #ffffff; box-shadow: none; }
+
+      /* ── Date selector ── */
+      .date-select { padding: 20px 12px 4px; }
+
+      /* ── Download button ── */
+      #dl_csv {
+        position: fixed; top: 11px; right: 20px; z-index: 9999;
+        background: #222; color: white; border: none;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600; font-size: 13px;
+        padding: 7px 18px; border-radius: 50px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+        transition: background 0.15s;
+      }
+      #dl_csv:hover { background: #444; }
+
+      /* ── Info box ── */
+      .info-box {
+        margin: 8px 8px 24px;
+        padding: 20px 28px;
+        border-left: 4px solid #0D6B7A;
+        color: #777; font-size: 14px; font-style: italic;
+        background: #ffffff;
+        border-radius: 0 14px 14px 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      }
+
+    "))
+  ),
 
   # ── Tab 1: Farm Production ──────────────────────────────────────────────────
   tabPanel("Farm Production",
@@ -71,15 +163,16 @@ ui <- navbarPage(
       )
     ),
     fluidRow(
-      column(4, plotOutput("plot_waste",      height = "420px")),
-      column(4, plotOutput("plot_larvae",     height = "420px")),
-      column(4, plotOutput("plot_fertilizer", height = "420px"))
+      column(4, chart_card(plotOutput("plot_waste",      height = "400px"))),
+      column(4, chart_card(plotOutput("plot_larvae",     height = "400px"))),
+      column(4, chart_card(plotOutput("plot_fertilizer", height = "400px")))
     )
   ),
 
-  # ── Tab 2: CO₂ Emissions Avoided ───────────────────────────────────────────
+  # ── Download button (fixed) ─────────────────────────────────────────────────
   tags$div(downloadButton("dl_csv", "Download CSV")),
 
+  # ── Tab 2: CO₂ Emissions Avoided ───────────────────────────────────────────
   tabPanel("CO\u2082 Emissions Avoided",
     div(class = "date-select", date_selector("start2", "end2")),
     div(class = "section-title", "CO\u2082 Emissions Avoided"),
@@ -101,9 +194,9 @@ ui <- navbarPage(
       )
     ),
     fluidRow(
-      column(4, plotOutput("plot_co2_waste",     height = "420px")),
-      column(4, plotOutput("plot_co2_feed",       height = "420px")),
-      column(4, plotOutput("plot_co2_fertilizer", height = "420px"))
+      column(4, chart_card(plotOutput("plot_co2_waste",     height = "400px"))),
+      column(4, chart_card(plotOutput("plot_co2_feed",       height = "400px"))),
+      column(4, chart_card(plotOutput("plot_co2_fertilizer", height = "400px")))
     ),
     div(class = "info-box",
       "How CO\u2082 values are calculated: [Placeholder \u2014 add a description of your LCA
