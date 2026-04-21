@@ -23,7 +23,11 @@ date_selector <- function(start_id, end_id) {
 
 ui <- navbarPage(
   id    = "active_tab",
-  title = "BSF Farm LCA Dashboard",
+  title = tags$span(
+    tags$img(src = "HERI-logo-FINAL-RGB.webp", height = "120px",
+             style = "margin-right: 16px; vertical-align: middle;"),
+    "BSF Farm LCA Dashboard"
+  ),
 
   tags$head(
     tags$link(rel = "stylesheet",
@@ -42,10 +46,15 @@ ui <- navbarPage(
         background-color: #ffffff !important;
         border-bottom: 2px solid #B6843D;
         box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        min-height: 150px;
       }
       .navbar-brand {
-        font-size: 22px; font-weight: 700; color: #111 !important;
-        letter-spacing: -0.3px;
+        font-size: 28px; font-weight: 700; color: #111 !important;
+        letter-spacing: -0.3px; padding-top: 20px; padding-bottom: 20px;
+      }
+      .navbar-nav > li > a {
+        padding-top: 55px !important; padding-bottom: 20px !important;
+        font-size: 16px !important;
       }
       .nav > li > a {
         font-size: 14px; font-weight: 600; color: #444 !important;
