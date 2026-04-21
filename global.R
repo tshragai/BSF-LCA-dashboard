@@ -126,9 +126,9 @@ month_choices <- setNames(
 )
 
 # ── Color palette ──────────────────────────────────────────────────────────────
-col_waste      <- col_co2_waste  <- "#0D6B7A"  # Deep teal
-col_larvae     <- col_co2_feed   <- "#C47D1A"  # Warm amber
-col_fertilizer <- col_co2_fert   <- "#8A2D6B"  # Berry/plum
+col_waste      <- col_co2_waste  <- "#B6843D"  # Warm brown/gold
+col_larvae     <- col_co2_feed   <- "#6B7A60"  # Muted sage green (darkened)
+col_fertilizer <- col_co2_fert   <- "#EA5137"  # Coral red
 
 # ── Charts ─────────────────────────────────────────────────────────────────────
 

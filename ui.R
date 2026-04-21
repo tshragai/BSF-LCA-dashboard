@@ -40,7 +40,7 @@ ui <- navbarPage(
       /* ── Navbar ── */
       .navbar {
         background-color: #ffffff !important;
-        border-bottom: 2px solid #0D6B7A;
+        border-bottom: 2px solid #B6843D;
         box-shadow: 0 2px 10px rgba(0,0,0,0.06);
       }
       .navbar-brand {
@@ -134,7 +134,7 @@ ui <- navbarPage(
       .info-box {
         margin: 8px 8px 24px;
         padding: 20px 28px;
-        border-left: 4px solid #0D6B7A;
+        border-left: 4px solid #B6843D;
         color: #777; font-size: 14px; font-style: italic;
         background: #ffffff;
         border-radius: 0 14px 14px 0;
