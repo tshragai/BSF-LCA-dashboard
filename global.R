@@ -53,13 +53,17 @@ eggs_sheet_id <- "1m98JnZ0MElWLkJ0104lg_bsAxJbkrei4MpGIS-rCwqQ"
 
 read_eggs_monthly <- function(sheet_id) {
   process_tab <- function(tab_name, egg_col_idx) {
+    tab_year <- as.integer(regmatches(tab_name, regexpr("\\d{4}", tab_name)))
     df   <- read_sheet(sheet_id, sheet = tab_name)
     tibble(
       date = as.Date(df[[1]]),
       eggs = suppressWarnings(as.numeric(df[[egg_col_idx]]))
     ) |>
       filter(!is.na(date), !is.na(eggs)) |>
-      mutate(month_year = format(date, "%m-%Y")) |>
+      mutate(
+        date       = as.Date(format(date, paste0(tab_year, "-%m-%d"))),
+        month_year = format(date, "%m-%Y")
+      ) |>
       group_by(month_year) |>
       summarise(monthly_eggs = sum(eggs, na.rm = TRUE), .groups = "drop")
   }
@@ -74,7 +78,9 @@ read_eggs_monthly <- function(sheet_id) {
 # falls back silently to the bundled outputs/lca_data.csv.
 
 tryCatch({
-  drive_auth(cache = ".secrets", email = "tshragai@gmail.com")
+  drive_auth(cache = ".secrets", email = "tshragai@stanford.edu",
+             scopes = c("https://www.googleapis.com/auth/drive",
+                        "https://www.googleapis.com/auth/spreadsheets"))
   gs4_auth(token = drive_token())
 
   drive_files <- drive_find(
@@ -91,7 +97,13 @@ tryCatch({
     arrange(date)
 
   message("Reading egg counts from daily log...")
-  eggs_data <- read_eggs_monthly(eggs_sheet_id)
+  eggs_data <- tryCatch(
+    read_eggs_monthly(eggs_sheet_id),
+    error = function(e) {
+      message("Could not read egg data: ", conditionMessage(e))
+      tibble(month_year = character(), monthly_eggs = NA_real_)
+    }
+  )
   lca_data  <- lca_data |> left_join(eggs_data, by = "month_year")
 
   write.csv(lca_data, "outputs/lca_data.csv", row.names = FALSE)
@@ -106,7 +118,7 @@ tryCatch({
     filter(date >= as.Date("2025-07-01")) |>
     arrange(date) |>
     left_join(
-      if ("monthly_eggs" %in% names(df)) select(df, month_year, monthly_eggs) else tibble(month_year = character()),
+      if ("monthly_eggs" %in% names(df)) select(df, month_year, monthly_eggs) else tibble(month_year = character(), monthly_eggs = NA_real_),
       by = "month_year"
     )
 })
