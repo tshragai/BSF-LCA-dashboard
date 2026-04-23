@@ -158,9 +158,10 @@ ui <- navbarPage(
     div(class = "date-select", date_selector("start1", "end1")),
     div(class = "section-title", "Farm Production"),
     fluidRow(
-      column(4, stat_card("lbl_waste1",      "val_waste1",      col_waste)),
-      column(4, stat_card("lbl_larvae1",     "val_larvae1",     col_larvae)),
-      column(4, stat_card("lbl_fertilizer1", "val_fertilizer1", col_fertilizer))
+      column(3, stat_card("lbl_waste1",      "val_waste1",      col_waste)),
+      column(3, stat_card("lbl_larvae1",     "val_larvae1",     col_larvae)),
+      column(3, stat_card("lbl_fertilizer1", "val_fertilizer1", col_fertilizer)),
+      column(3, stat_card("lbl_eggs1",       "val_eggs1",       col_eggs))
     ),
     div(class = "toggle-wrap",
       radioGroupButtons(
@@ -172,19 +173,20 @@ ui <- navbarPage(
       )
     ),
     fluidRow(
-      column(4, chart_card(plotOutput("plot_waste",      height = "400px"))),
-      column(4, chart_card(plotOutput("plot_larvae",     height = "400px"))),
-      column(4, chart_card(plotOutput("plot_fertilizer", height = "400px")))
+      column(3, chart_card(plotOutput("plot_waste",      height = "400px"))),
+      column(3, chart_card(plotOutput("plot_larvae",     height = "400px"))),
+      column(3, chart_card(plotOutput("plot_fertilizer", height = "400px"))),
+      column(3, chart_card(plotOutput("plot_eggs",       height = "400px")))
     )
   ),
 
   # ── Download button (fixed) ─────────────────────────────────────────────────
   tags$div(downloadButton("dl_csv", "Download CSV")),
 
-  # ── Tab 2: CO₂ Emissions Avoided ───────────────────────────────────────────
-  tabPanel("CO\u2082 Emissions Avoided",
+  # ── Tab 2: CO₂ Emissions Averted ───────────────────────────────────────────
+  tabPanel("CO\u2082 Emissions Averted",
     div(class = "date-select", date_selector("start2", "end2")),
-    div(class = "section-title", "CO\u2082 Emissions Avoided"),
+    div(class = "section-title", "CO\u2082 Emissions Averted"),
     div(class = "grand-total", textOutput("val_co2_grand")),
     fluidRow(
       column(4, stat_card("lbl_co2_waste2",     "val_co2_waste2",      col_co2_waste)),
@@ -195,9 +197,9 @@ ui <- navbarPage(
       radioGroupButtons(
         inputId  = "chart_mode",
         label    = NULL,
-        choices  = c("KG CO\u2082 Avoided" = "averted",
+        choices  = c("KG CO\u2082 Averted" = "averted",
                      "Conventional vs BSF" = "comparison",
-                     "Cumulative CO\u2082 Avoided" = "cumulative"),
+                     "Cumulative CO\u2082 Averted" = "cumulative"),
         selected = "averted",
         status   = "default"
       )
@@ -208,8 +210,7 @@ ui <- navbarPage(
       column(4, chart_card(plotOutput("plot_co2_fertilizer", height = "400px")))
     ),
     div(class = "info-box",
-      "How CO\u2082 values are calculated: [Placeholder \u2014 add a description of your LCA
-      methodology here, including system boundaries, emission factors, and data sources.]"
+      "CO\u2082-equivalent values were calculated using a gate-to-gate Life Cycle Assessment (LCA) framework covering organic waste collection, black soldier fly (BSF) bioconversion, and processing into larvae and frass. Emission factors were sourced from established databases and models (e.g., EPA WARM, GREET, and Ecoinvent) and applied to defined functional units based on observed production data. Averted emissions were estimated through system expansion by comparing BSF outputs to conventional landfill disposal, imported animal feed, and synthetic fertilizer production."
     )
   )
 )

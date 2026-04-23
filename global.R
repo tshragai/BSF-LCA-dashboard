@@ -1,6 +1,7 @@
 # global.R
 
 library(googledrive)
+library(googlesheets4)
 library(readxl)
 library(dplyr)
 library(tidyr)
@@ -24,74 +25,90 @@ parse_lca_file <- function(drive_file) {
   month_year <- paste0(parts[2], "-", parts[3])
 
   tibble(
-    month_year                  = month_year,
-    kg_waste_processed          = as.numeric(read_cell(tmp, "B9")),
-    kg_larvae_produced          = as.numeric(read_cell(tmp, "B10")),
-    kg_fertilizer_produced      = as.numeric(read_cell(tmp, "B11")),
-    conventional_co2_waste      = as.numeric(read_cell(tmp, "C34")),
-    bsf_co2_waste               = as.numeric(read_cell(tmp, "C22")),
-    conventional_co2_feed       = as.numeric(read_cell(tmp, "E34")),
-    bsf_co2_feed                = as.numeric(read_cell(tmp, "D22")),
-    conventional_co2_fertilizer = as.numeric(read_cell(tmp, "G34")),
-    bsf_co2_fertilizer          = as.numeric(read_cell(tmp, "E22"))
+    month_year             = month_year,
+    kg_waste_processed     = as.numeric(read_cell(tmp, "B9")),
+    kg_larvae_produced     = as.numeric(read_cell(tmp, "B10")),
+    kg_fertilizer_produced = as.numeric(read_cell(tmp, "B11"))
   )
 }
 
 add_calculated_cols <- function(df) {
   df |> mutate(
-    date                   = as.Date(paste0("01-", month_year), format = "%d-%m-%Y"),
-    averted_co2_waste      = conventional_co2_waste      - bsf_co2_waste,
-    averted_co2_feed       = conventional_co2_feed       - bsf_co2_feed,
-    averted_co2_fertilizer = conventional_co2_fertilizer - bsf_co2_fertilizer
+    date                        = as.Date(paste0("01-", month_year), format = "%d-%m-%Y"),
+    conventional_co2_waste      = kg_waste_processed     * 1.2,
+    conventional_co2_feed       = kg_larvae_produced     * 1.7,
+    conventional_co2_fertilizer = kg_fertilizer_produced * 3.1,
+    bsf_co2_waste               = kg_waste_processed     * 0.025,
+    bsf_co2_feed                = kg_larvae_produced     * 0.52,
+    bsf_co2_fertilizer          = 0,
+    averted_co2_waste           = conventional_co2_waste      - bsf_co2_waste,
+    averted_co2_feed            = conventional_co2_feed       - bsf_co2_feed,
+    averted_co2_fertilizer      = conventional_co2_fertilizer - bsf_co2_fertilizer
+  )
+}
+
+# ── Eggs helper ────────────────────────────────────────────────────────────────
+
+eggs_sheet_id <- "1m98JnZ0MElWLkJ0104lg_bsAxJbkrei4MpGIS-rCwqQ"
+
+read_eggs_monthly <- function(sheet_id) {
+  process_tab <- function(tab_name, egg_col_idx) {
+    df   <- read_sheet(sheet_id, sheet = tab_name)
+    tibble(
+      date = as.Date(df[[1]]),
+      eggs = suppressWarnings(as.numeric(df[[egg_col_idx]]))
+    ) |>
+      filter(!is.na(date), !is.na(eggs)) |>
+      mutate(month_year = format(date, "%m-%Y")) |>
+      group_by(month_year) |>
+      summarise(monthly_eggs = sum(eggs, na.rm = TRUE), .groups = "drop")
+  }
+  bind_rows(
+    process_tab("Daily Log (HERI log)(2026)", 21),  # col U
+    process_tab("Daily Log (HERI log)(2025)", 20)   # col T
   )
 }
 
 # ── Data loading ───────────────────────────────────────────────────────────────
-# Tries to sync new months from Google Drive. If auth fails (e.g. on shinyapps.io),
+# Tries to sync from Google Drive. If auth fails (e.g. on shinyapps.io),
 # falls back silently to the bundled outputs/lca_data.csv.
 
 tryCatch({
   drive_auth(cache = ".secrets", email = "tshragai@gmail.com")
+  gs4_auth(token = drive_token())
 
-  existing_months <- if (file.exists("outputs/lca_data.csv")) {
-    read.csv("outputs/lca_data.csv")$month_year
-  } else {
-    character(0)
-  }
-
-  drive_files  <- drive_find(
+  drive_files <- drive_find(
     q = c("'1DOguXcDo9dGf37XjlciUMkENQV00XmoU' in parents", "trashed = false"),
     pattern                   = "BSFfarmLCA_",
     includeItemsFromAllDrives = TRUE,
     supportsAllDrives         = TRUE
   )
 
-  drive_months <- str_match(drive_files$name, "BSFfarmLCA_(\\d{2})_(\\d{4})")
-  drive_months <- paste0(drive_months[, 2], "-", drive_months[, 3])
-  new_files    <- drive_files[!drive_months %in% existing_months, ]
+  message("Downloading ", nrow(drive_files), " file(s) from Drive...")
+  lca_data <- map_dfr(seq_len(nrow(drive_files)), \(i) parse_lca_file(drive_files[i, ])) |>
+    add_calculated_cols() |>
+    filter(date >= as.Date("2025-07-01")) |>
+    arrange(date)
 
-  if (nrow(new_files) > 0) {
-    message("Downloading ", nrow(new_files), " new file(s) from Drive...")
-    new_rows <- map_dfr(seq_len(nrow(new_files)), \(i) parse_lca_file(new_files[i, ])) |>
-      add_calculated_cols()
-    lca_data <- if (length(existing_months) > 0) {
-      read.csv("outputs/lca_data.csv") |>
-        mutate(date = as.Date(date)) |>
-        bind_rows(new_rows) |>
-        arrange(date)
-    } else {
-      new_rows |> arrange(date)
-    }
-    write.csv(lca_data, "outputs/lca_data.csv", row.names = FALSE)
-    message("outputs/lca_data.csv updated.")
-  } else {
-    message("No new Drive files — loading from outputs/lca_data.csv")
-    lca_data <- read.csv("outputs/lca_data.csv") |> mutate(date = as.Date(date))
-  }
+  message("Reading egg counts from daily log...")
+  eggs_data <- read_eggs_monthly(eggs_sheet_id)
+  lca_data  <- lca_data |> left_join(eggs_data, by = "month_year")
+
+  write.csv(lca_data, "outputs/lca_data.csv", row.names = FALSE)
+  message("outputs/lca_data.csv updated.")
 
 }, error = function(e) {
   message("Drive sync unavailable (", conditionMessage(e), ") — loading from outputs/lca_data.csv")
-  lca_data <<- read.csv("outputs/lca_data.csv") |> mutate(date = as.Date(date))
+  df <- read.csv("outputs/lca_data.csv")
+  lca_data <<- df |>
+    select(month_year, kg_waste_processed, kg_larvae_produced, kg_fertilizer_produced) |>
+    add_calculated_cols() |>
+    filter(date >= as.Date("2025-07-01")) |>
+    arrange(date) |>
+    left_join(
+      if ("monthly_eggs" %in% names(df)) select(df, month_year, monthly_eggs) else tibble(month_year = character()),
+      by = "month_year"
+    )
 })
 
 # ── Lifetime totals ────────────────────────────────────────────────────────────
@@ -129,6 +146,7 @@ month_choices <- setNames(
 col_waste      <- col_co2_waste  <- "#B6843D"  # Warm brown/gold
 col_larvae     <- col_co2_feed   <- "#6B7A60"  # Muted sage green (darkened)
 col_fertilizer <- col_co2_fert   <- "#EA5137"  # Coral red
+col_eggs                         <- "#D4A843"  # Warm golden yellow
 
 # ── Charts ─────────────────────────────────────────────────────────────────────
 
@@ -191,7 +209,7 @@ make_comparison_chart <- function(data, conv_col, bsf_col, title, bsf_color) {
 
   ggplot(plot_data, aes(x = month_label, y = value, fill = type)) +
     geom_col(position = position_dodge(width = 0.8), color = "#555555", alpha = 0.8, width = 0.38) +
-    scale_fill_manual(values = c("Conventional" = "#aaaaaa", "BSF" = bsf_color)) +
+    scale_fill_manual(values = c("Conventional" = "#7A9BB5", "BSF" = bsf_color)) +
     scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.05))) +
     labs(title = title, x = "Month", y = "KG CO\u2082", fill = NULL) +
     theme_dash() +
