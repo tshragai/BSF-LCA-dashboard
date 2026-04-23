@@ -90,37 +90,48 @@ tryCatch({
     supportsAllDrives         = TRUE
   )
 
-  message("Downloading ", nrow(drive_files), " file(s) from Drive...")
-  lca_data <- map_dfr(seq_len(nrow(drive_files)), \(i) parse_lca_file(drive_files[i, ])) |>
-    add_calculated_cols() |>
-    filter(date >= as.Date("2025-07-01")) |>
-    arrange(date)
+  csv_mtime   <- file.info("outputs/lca_data.csv")$mtime
+  drive_mtime <- max(as.POSIXct(drive_files$drive_resource |>
+                                  sapply(\(r) r$modifiedTime),
+                                format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"))
 
-  message("Reading egg counts from daily log...")
-  eggs_data <- tryCatch(
-    read_eggs_monthly(eggs_sheet_id),
-    error = function(e) {
-      message("Could not read egg data: ", conditionMessage(e))
-      tibble(month_year = character(), monthly_eggs = NA_real_)
-    }
-  )
-  lca_data  <- lca_data |> left_join(eggs_data, by = "month_year")
+  if (!is.na(csv_mtime) && drive_mtime <= csv_mtime) {
+    message("No new Drive files — loading from outputs/lca_data.csv")
+    df      <- read.csv("outputs/lca_data.csv")
+    lca_data <<- df |>
+      mutate(date = as.Date(date)) |>
+      filter(date >= as.Date("2025-07-01")) |>
+      arrange(date)
+  } else {
+    message("New data found — downloading ", nrow(drive_files), " file(s) from Drive...")
+    lca_data <- map_dfr(seq_len(nrow(drive_files)), \(i) parse_lca_file(drive_files[i, ])) |>
+      add_calculated_cols() |>
+      filter(date >= as.Date("2025-07-01")) |>
+      arrange(date)
 
-  write.csv(lca_data, "outputs/lca_data.csv", row.names = FALSE)
-  message("outputs/lca_data.csv updated.")
+    message("Reading egg counts from daily log...")
+    eggs_data <- tryCatch(
+      read_eggs_monthly(eggs_sheet_id),
+      error = function(e) {
+        message("Could not read egg data: ", conditionMessage(e))
+        tibble(month_year = character(), monthly_eggs = NA_real_)
+      }
+    )
+    lca_data  <- lca_data |> left_join(eggs_data, by = "month_year")
+
+    write.csv(lca_data, "outputs/lca_data.csv", row.names = FALSE)
+    message("outputs/lca_data.csv updated.")
+  }
 
 }, error = function(e) {
   message("Drive sync unavailable (", conditionMessage(e), ") — loading from outputs/lca_data.csv")
   df <- read.csv("outputs/lca_data.csv")
   lca_data <<- df |>
-    select(month_year, kg_waste_processed, kg_larvae_produced, kg_fertilizer_produced) |>
-    add_calculated_cols() |>
+    mutate(date = as.Date(date)) |>
     filter(date >= as.Date("2025-07-01")) |>
-    arrange(date) |>
-    left_join(
-      if ("monthly_eggs" %in% names(df)) select(df, month_year, monthly_eggs) else tibble(month_year = character(), monthly_eggs = NA_real_),
-      by = "month_year"
-    )
+    arrange(date)
+  if (!"monthly_eggs" %in% names(lca_data))
+    lca_data$monthly_eggs <<- NA_real_
 })
 
 # ── Lifetime totals ────────────────────────────────────────────────────────────
