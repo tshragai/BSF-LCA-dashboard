@@ -13,10 +13,6 @@ library(scales)
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-read_cell <- function(path, cell) {
-  read_excel(path, sheet = "Overview", range = cell, col_names = FALSE)[[1]][[1]]
-}
-
 parse_lca_file <- function(drive_file) {
   tmp <- tempfile(fileext = ".xlsx")
   drive_download(drive_file, path = tmp, overwrite = TRUE, verbose = FALSE)
@@ -24,11 +20,14 @@ parse_lca_file <- function(drive_file) {
   parts      <- str_match(drive_file$name, "BSFfarmLCA_(\\d{2})_(\\d{4})")
   month_year <- paste0(parts[2], "-", parts[3])
 
+  df     <- read_excel(tmp, sheet = "Daily Log (HERI log)", col_names = FALSE)
+  ms_row <- which(sapply(df[[1]], function(x) !is.na(x) && trimws(as.character(x)) == "Monthly Sum"))
+
   tibble(
     month_year             = month_year,
-    kg_waste_processed     = as.numeric(read_cell(tmp, "B9")),
-    kg_larvae_produced     = as.numeric(read_cell(tmp, "B10")),
-    kg_fertilizer_produced = as.numeric(read_cell(tmp, "B11"))
+    kg_waste_processed     = as.numeric(df[[3]][ms_row]),
+    kg_larvae_produced     = as.numeric(df[[13]][ms_row]),
+    kg_fertilizer_produced = as.numeric(df[[16]][ms_row])
   )
 }
 
