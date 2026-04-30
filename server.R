@@ -43,13 +43,13 @@ server <- function(input, output, session) {
   output$lbl_waste1      <- renderText(paste0("Total waste processed, ",      lbl1()))
   output$lbl_larvae1     <- renderText(paste0("Total larvae produced, ",       lbl1()))
   output$lbl_fertilizer1 <- renderText(paste0("Total fertilizer produced, ",   lbl1()))
-  output$lbl_eggs1       <- renderText(paste0("Total eggs produced, ",          lbl1()))
+  output$lbl_eggs1       <- renderText(paste0("Total chicken eggs produced, ",   lbl1()))
 
   # ── Tab 1: stat card values ─────────────────────────────────────────────────
   output$val_waste1      <- renderText(paste0(comma(sum(dat1()$kg_waste_processed,    na.rm=TRUE), accuracy=1), " kg"))
   output$val_larvae1     <- renderText(paste0(comma(sum(dat1()$kg_larvae_produced,     na.rm=TRUE), accuracy=1), " kg"))
   output$val_fertilizer1 <- renderText(paste0(comma(sum(dat1()$kg_fertilizer_produced, na.rm=TRUE), accuracy=1), " kg"))
-  output$val_eggs1       <- renderText(paste0(comma(sum(dat1()$monthly_eggs,           na.rm=TRUE), accuracy=1), " eggs"))
+  output$val_eggs1       <- renderText(paste0(comma(sum(dat1()$monthly_eggs,           na.rm=TRUE), accuracy=1), " chicken eggs"))
 
   # ── Tab 1: plots ────────────────────────────────────────────────────────────
   output$plot_waste <- renderPlot({
@@ -74,10 +74,11 @@ server <- function(input, output, session) {
     }
   }, res = 96)
   output$plot_eggs <- renderPlot({
+    d <- dat1() |> mutate(monthly_eggs = replace_na(monthly_eggs, 0))
     if (input$view_mode1 == "monthly") {
-      make_bar_chart(dat1(), "monthly_eggs", "Monthly eggs produced", col_eggs, y_label = "Eggs")
+      make_bar_chart(d, "monthly_eggs", "Monthly chicken eggs\nproduced", col_eggs, y_label = "Chicken Eggs")
     } else {
-      make_cumulative_chart(dat1(), "monthly_eggs", "Cumulative eggs produced", col_eggs, y_label = "Eggs")
+      make_cumulative_chart(d, "monthly_eggs", "Cumulative chicken eggs\nproduced", col_eggs, y_label = "Chicken Eggs")
     }
   }, res = 96)
 
@@ -87,13 +88,37 @@ server <- function(input, output, session) {
   output$lbl_co2_fertilizer2 <- renderText(paste0("Total CO\u2082 averted via chemical fertilizer not used, ",  lbl2()))
 
   # ── Tab 2: grand total ──────────────────────────────────────────────────────
+  output$lbl_co2_hero <- renderText(paste0("Total CO\u2082 Emissions Averted, ", lbl2()))
+
   output$val_co2_grand <- renderText({
     d     <- dat2()
     total <- sum(d$averted_co2_waste, na.rm=TRUE) +
              sum(d$averted_co2_feed,  na.rm=TRUE) +
              sum(d$averted_co2_fertilizer, na.rm=TRUE)
-    paste0("Total CO\u2082 Emissions Averted, ", lbl2(), ": ", comma(total, accuracy=1), " kg")
+    paste0(comma(total, accuracy=1), " kg")
   })
+
+  output$plot_co2_total <- renderPlot({
+    d <- dat2() |>
+      mutate(
+        total_co2_averted      = averted_co2_waste       + averted_co2_feed       + averted_co2_fertilizer,
+        total_co2_conventional = conventional_co2_waste  + conventional_co2_feed  + conventional_co2_fertilizer,
+        total_co2_bsf          = bsf_co2_waste           + bsf_co2_feed           + bsf_co2_fertilizer
+      )
+    if (input$chart_mode_total == "cumulative") {
+      make_cumulative_chart(d, "total_co2_averted",
+                            "Cumulative Total CO\u2082 Emissions Averted",
+                            col_co2_total, y_label = "KG CO\u2082")
+    } else if (input$chart_mode_total == "averted") {
+      make_bar_chart(d, "total_co2_averted",
+                     "Monthly Total CO\u2082 Emissions Averted",
+                     col_co2_total, y_label = "KG CO\u2082")
+    } else {
+      make_comparison_chart(d, "total_co2_conventional", "total_co2_bsf",
+                            "Monthly Total CO\u2082: Conventional vs BSF",
+                            col_co2_total)
+    }
+  }, res = 96)
 
   # ── Tab 2: stat card values ─────────────────────────────────────────────────
   output$val_co2_waste2      <- renderText(paste0(comma(sum(dat2()$averted_co2_waste,       na.rm=TRUE), accuracy=1), " kg"))

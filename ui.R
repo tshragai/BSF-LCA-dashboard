@@ -71,9 +71,32 @@ ui <- navbarPage(
         text-align: center; padding: 24px 0 20px;
         letter-spacing: -0.4px;
       }
-      .grand-total {
-        font-size: 20px; font-weight: 600; color: #333;
-        text-align: center; padding: 0 0 28px; letter-spacing: -0.2px;
+      /* ── Hero card (CO₂ grand total) ── */
+      .hero-card {
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+        text-align: center;
+        padding: 40px 24px 44px;
+        margin: 0 6px 24px;
+        border-top: 4px solid #3B7A57;
+      }
+      .hero-label {
+        font-size: 18px; font-weight: 600; color: #666;
+        margin-bottom: 16px; letter-spacing: 0.1px;
+      }
+      .hero-value {
+        font-size: 64px; font-weight: 700; color: #3B7A57;
+        line-height: 1; margin: 0;
+      }
+
+      /* ── Breakdown section divider ── */
+      .breakdown-title {
+        font-size: 20px; font-weight: 700; color: #444;
+        text-align: center; padding: 16px 0 20px;
+        letter-spacing: -0.3px;
+        border-top: 1px solid #e8e4df;
+        margin: 8px 6px 0;
       }
 
       /* ── Stat cards ── */
@@ -89,7 +112,7 @@ ui <- navbarPage(
         font-size: 16px; font-weight: 600; color: #666;
         margin-bottom: 14px; line-height: 1.5;
       }
-      .stat-value { font-size: 40px; font-weight: 700; margin: 0; line-height: 1; }
+      .stat-value { font-size: 32px; font-weight: 700; margin: 0; line-height: 1; }
 
       /* ── Chart cards ── */
       .chart-card {
@@ -187,7 +210,33 @@ ui <- navbarPage(
   tabPanel("CO\u2082 Emissions Averted",
     div(class = "date-select", date_selector("start2", "end2")),
     div(class = "section-title", "CO\u2082 Emissions Averted"),
-    div(class = "grand-total", textOutput("val_co2_grand")),
+
+    # \u2500\u2500 Block 1: Hero total + cumulative chart \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    fluidRow(
+      column(12,
+        div(class = "hero-card",
+          div(class = "hero-label", textOutput("lbl_co2_hero")),
+          div(class = "hero-value", textOutput("val_co2_grand"))
+        )
+      )
+    ),
+    div(class = "toggle-wrap",
+      radioGroupButtons(
+        inputId  = "chart_mode_total",
+        label    = NULL,
+        choices  = c("Cumulative CO₂ Averted" = "cumulative",
+                     "Monthly CO₂ Averted"    = "averted",
+                     "Conventional vs BSF"          = "comparison"),
+        selected = "cumulative",
+        status   = "default"
+      )
+    ),
+    fluidRow(
+      column(12, chart_card(plotOutput("plot_co2_total", height = "320px")))
+    ),
+
+    # \u2500\u2500 Block 2: Breakdown by category \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    div(class = "breakdown-title", "Breakdown by Category"),
     fluidRow(
       column(4, stat_card("lbl_co2_waste2",     "val_co2_waste2",      col_co2_waste)),
       column(4, stat_card("lbl_co2_feed2",       "val_co2_feed2",       col_co2_feed)),

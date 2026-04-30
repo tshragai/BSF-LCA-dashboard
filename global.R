@@ -13,6 +13,10 @@ library(scales)
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+read_cell <- function(path, cell) {
+  read_excel(path, sheet = "Overview", range = cell, col_names = FALSE)[[1]][[1]]
+}
+
 parse_lca_file <- function(drive_file) {
   tmp <- tempfile(fileext = ".xlsx")
   drive_download(drive_file, path = tmp, overwrite = TRUE, verbose = FALSE)
@@ -20,14 +24,11 @@ parse_lca_file <- function(drive_file) {
   parts      <- str_match(drive_file$name, "BSFfarmLCA_(\\d{2})_(\\d{4})")
   month_year <- paste0(parts[2], "-", parts[3])
 
-  df     <- read_excel(tmp, sheet = "Daily Log (HERI log)", col_names = FALSE)
-  ms_row <- which(sapply(df[[1]], function(x) !is.na(x) && trimws(as.character(x)) == "Monthly Sum"))
-
   tibble(
     month_year             = month_year,
-    kg_waste_processed     = as.numeric(df[[3]][ms_row]),
-    kg_larvae_produced     = as.numeric(df[[13]][ms_row]),
-    kg_fertilizer_produced = as.numeric(df[[16]][ms_row])
+    kg_waste_processed     = as.numeric(read_cell(tmp, "B9")),
+    kg_larvae_produced     = as.numeric(read_cell(tmp, "B10")),
+    kg_fertilizer_produced = as.numeric(read_cell(tmp, "B11"))
   )
 }
 
@@ -52,17 +53,13 @@ eggs_sheet_id <- "1m98JnZ0MElWLkJ0104lg_bsAxJbkrei4MpGIS-rCwqQ"
 
 read_eggs_monthly <- function(sheet_id) {
   process_tab <- function(tab_name, egg_col_idx) {
-    tab_year <- as.integer(regmatches(tab_name, regexpr("\\d{4}", tab_name)))
     df   <- read_sheet(sheet_id, sheet = tab_name)
     tibble(
       date = as.Date(df[[1]]),
       eggs = suppressWarnings(as.numeric(df[[egg_col_idx]]))
     ) |>
       filter(!is.na(date), !is.na(eggs)) |>
-      mutate(
-        date       = as.Date(format(date, paste0(tab_year, "-%m-%d"))),
-        month_year = format(date, "%m-%Y")
-      ) |>
+      mutate(month_year = format(date, "%m-%Y")) |>
       group_by(month_year) |>
       summarise(monthly_eggs = sum(eggs, na.rm = TRUE), .groups = "drop")
   }
@@ -89,48 +86,80 @@ tryCatch({
     supportsAllDrives         = TRUE
   )
 
-  csv_mtime   <- file.info("outputs/lca_data.csv")$mtime
-  drive_mtime <- max(as.POSIXct(drive_files$drive_resource |>
-                                  sapply(\(r) r$modifiedTime),
-                                format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"))
+  # ── Load cached metadata and raw data ────────────────────────────────────
+  meta_path  <- "outputs/file_metadata.rds"
+  cached_meta <- if (file.exists(meta_path)) readRDS(meta_path) else setNames(list(), character(0))
 
-  if (!is.na(csv_mtime) && drive_mtime <= csv_mtime) {
-    message("No new Drive files — loading from outputs/lca_data.csv")
-    df      <- read.csv("outputs/lca_data.csv")
-    lca_data <<- df |>
-      mutate(date = as.Date(date)) |>
-      filter(date >= as.Date("2025-07-01")) |>
-      arrange(date)
+  cached_raw <- if (file.exists("outputs/lca_data.csv")) {
+    read.csv("outputs/lca_data.csv") |>
+      select(month_year, kg_waste_processed, kg_larvae_produced, kg_fertilizer_produced)
   } else {
-    message("New data found — downloading ", nrow(drive_files), " file(s) from Drive...")
-    lca_data <- map_dfr(seq_len(nrow(drive_files)), \(i) parse_lca_file(drive_files[i, ])) |>
-      add_calculated_cols() |>
-      filter(date >= as.Date("2025-07-01")) |>
-      arrange(date)
-
-    message("Reading egg counts from daily log...")
-    eggs_data <- tryCatch(
-      read_eggs_monthly(eggs_sheet_id),
-      error = function(e) {
-        message("Could not read egg data: ", conditionMessage(e))
-        tibble(month_year = character(), monthly_eggs = NA_real_)
-      }
-    )
-    lca_data  <- lca_data |> left_join(eggs_data, by = "month_year")
-
-    write.csv(lca_data, "outputs/lca_data.csv", row.names = FALSE)
-    message("outputs/lca_data.csv updated.")
+    tibble(month_year = character(), kg_waste_processed = numeric(),
+           kg_larvae_produced = numeric(), kg_fertilizer_produced = numeric())
   }
+
+  # ── Compare Drive modifiedTime against cache ──────────────────────────────
+  current_meta <- setNames(
+    vapply(seq_len(nrow(drive_files)),
+           \(i) as.character(drive_files$drive_resource[[i]]$modifiedTime),
+           character(1)),
+    drive_files$name
+  )
+
+  needs_download <- names(current_meta)[vapply(names(current_meta), \(n) {
+    is.null(cached_meta[[n]]) || cached_meta[[n]] != current_meta[[n]]
+  }, logical(1))]
+
+  # ── Download only new or modified files ───────────────────────────────────
+  if (length(needs_download) > 0) {
+    message("Downloading ", length(needs_download), " new/modified file(s) from Drive...")
+    dl_files   <- drive_files[drive_files$name %in% needs_download, ]
+    fresh_data <- map_dfr(seq_len(nrow(dl_files)), \(i) parse_lca_file(dl_files[i, ]))
+  } else {
+    message("All Drive files up to date — using cached data.")
+    fresh_data <- tibble(month_year = character(), kg_waste_processed = numeric(),
+                         kg_larvae_produced = numeric(), kg_fertilizer_produced = numeric())
+  }
+
+  # ── Pull unchanged rows from the cached CSV ───────────────────────────────
+  unchanged_my <- map_chr(
+    setdiff(drive_files$name, needs_download),
+    \(n) { m <- str_match(n, "BSFfarmLCA_(\\d{2})_(\\d{4})"); paste0(m[2], "-", m[3]) }
+  )
+  cached_subset <- cached_raw |> filter(month_year %in% unchanged_my)
+
+  # ── Combine, compute, filter ──────────────────────────────────────────────
+  lca_data <- bind_rows(fresh_data, cached_subset) |>
+    add_calculated_cols() |>
+    filter(date >= as.Date("2025-07-01")) |>
+    arrange(date)
+
+  message("Reading egg counts from daily log...")
+  eggs_data <- tryCatch(
+    read_eggs_monthly(eggs_sheet_id),
+    error = function(e) {
+      message("Could not read egg data: ", conditionMessage(e))
+      tibble(month_year = character(), monthly_eggs = NA_real_)
+    }
+  )
+  lca_data <- lca_data |> left_join(eggs_data, by = "month_year")
+
+  write.csv(lca_data, "outputs/lca_data.csv", row.names = FALSE)
+  saveRDS(current_meta, meta_path)
+  message("outputs/lca_data.csv and file_metadata.rds updated.")
 
 }, error = function(e) {
   message("Drive sync unavailable (", conditionMessage(e), ") — loading from outputs/lca_data.csv")
   df <- read.csv("outputs/lca_data.csv")
   lca_data <<- df |>
-    mutate(date = as.Date(date)) |>
+    select(month_year, kg_waste_processed, kg_larvae_produced, kg_fertilizer_produced) |>
+    add_calculated_cols() |>
     filter(date >= as.Date("2025-07-01")) |>
-    arrange(date)
-  if (!"monthly_eggs" %in% names(lca_data))
-    lca_data$monthly_eggs <<- NA_real_
+    arrange(date) |>
+    left_join(
+      if ("monthly_eggs" %in% names(df)) select(df, month_year, monthly_eggs) else tibble(month_year = character(), monthly_eggs = NA_real_),
+      by = "month_year"
+    )
 })
 
 # ── Lifetime totals ────────────────────────────────────────────────────────────
@@ -169,6 +198,7 @@ col_waste      <- col_co2_waste  <- "#B6843D"  # Warm brown/gold
 col_larvae     <- col_co2_feed   <- "#6B7A60"  # Muted sage green (darkened)
 col_fertilizer <- col_co2_fert   <- "#EA5137"  # Coral red
 col_eggs                         <- "#D4A843"  # Warm golden yellow
+col_co2_total                    <- "#3B7A57"  # Forest green (total CO₂ averted)
 
 # ── Charts ─────────────────────────────────────────────────────────────────────
 

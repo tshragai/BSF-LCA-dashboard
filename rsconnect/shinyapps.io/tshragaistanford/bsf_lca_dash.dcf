@@ -5,6 +5,6 @@ account: tshragaistanford
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 17184400
-bundleId: 11886496
+bundleId: 11903360
 url: https://tshragaistanford.shinyapps.io/bsf_lca_dash/
 version: 1
