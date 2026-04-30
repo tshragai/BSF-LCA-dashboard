@@ -13,10 +13,6 @@ library(scales)
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-read_cell <- function(path, cell) {
-  read_excel(path, sheet = "Overview", range = cell, col_names = FALSE)[[1]][[1]]
-}
-
 parse_lca_file <- function(drive_file) {
   tmp <- tempfile(fileext = ".xlsx")
   drive_download(drive_file, path = tmp, overwrite = TRUE, verbose = FALSE)
@@ -24,11 +20,14 @@ parse_lca_file <- function(drive_file) {
   parts      <- str_match(drive_file$name, "BSFfarmLCA_(\\d{2})_(\\d{4})")
   month_year <- paste0(parts[2], "-", parts[3])
 
+  df     <- read_excel(tmp, sheet = "Daily Log (HERI log)", col_names = FALSE)
+  ms_row <- which(sapply(df[[1]], function(x) !is.na(x) && trimws(as.character(x)) == "Monthly Sum"))
+
   tibble(
     month_year             = month_year,
-    kg_waste_processed     = as.numeric(read_cell(tmp, "B9")),
-    kg_larvae_produced     = as.numeric(read_cell(tmp, "B10")),
-    kg_fertilizer_produced = as.numeric(read_cell(tmp, "B11"))
+    kg_waste_processed     = as.numeric(df[[3]][ms_row]),
+    kg_larvae_produced     = as.numeric(df[[13]][ms_row]),
+    kg_fertilizer_produced = as.numeric(df[[16]][ms_row])
   )
 }
 
@@ -53,13 +52,17 @@ eggs_sheet_id <- "1m98JnZ0MElWLkJ0104lg_bsAxJbkrei4MpGIS-rCwqQ"
 
 read_eggs_monthly <- function(sheet_id) {
   process_tab <- function(tab_name, egg_col_idx) {
+    tab_year <- as.integer(regmatches(tab_name, regexpr("\\d{4}", tab_name)))
     df   <- read_sheet(sheet_id, sheet = tab_name)
     tibble(
       date = as.Date(df[[1]]),
       eggs = suppressWarnings(as.numeric(df[[egg_col_idx]]))
     ) |>
       filter(!is.na(date), !is.na(eggs)) |>
-      mutate(month_year = format(date, "%m-%Y")) |>
+      mutate(
+        date       = as.Date(format(date, paste0(tab_year, "-%m-%d"))),
+        month_year = format(date, "%m-%Y")
+      ) |>
       group_by(month_year) |>
       summarise(monthly_eggs = sum(eggs, na.rm = TRUE), .groups = "drop")
   }
