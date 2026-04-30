@@ -259,7 +259,7 @@ ui <- navbarPage(
       column(4, chart_card(plotOutput("plot_co2_fertilizer", height = "400px")))
     ),
     div(class = "info-box",
-      "CO\u2082-equivalent values were calculated using a gate-to-gate Life Cycle Assessment (LCA) framework covering organic waste collection, black soldier fly (BSF) bioconversion, and processing into larvae and frass. Emission factors were sourced from established databases and models (e.g., EPA WARM, GREET, and Ecoinvent) and applied to defined functional units based on observed production data. Averted emissions were estimated through system expansion by comparing BSF outputs to conventional landfill disposal, imported animal feed, and synthetic fertilizer production."
+      "CO\u2082-equivalent values were calculated using a gate-to-gate Life Cycle Assessment (LCA) framework covering organic waste collection, black soldier fly (BSF) bioconversion, and processing into larvae and frass. Emission factors were sourced from established databases and models (e.g., EPA WARM, GREET, and Ecoinvent) and applied to defined functional units based on observed production data. Averted emissions were estimated through system expansion by comparing BSF outputs to conventional landfill disposal, imported animal feed, and synthetic fertilizer production. Conventional CO\u2082 emission factors represent the mean of the upper and lower threshold estimates from the source literature."
     )
   )
 )

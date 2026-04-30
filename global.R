@@ -34,9 +34,9 @@ parse_lca_file <- function(drive_file) {
 add_calculated_cols <- function(df) {
   df |> mutate(
     date                        = as.Date(paste0("01-", month_year), format = "%d-%m-%Y"),
-    conventional_co2_waste      = kg_waste_processed     * 1.2,
-    conventional_co2_feed       = kg_larvae_produced     * 1.7,
-    conventional_co2_fertilizer = kg_fertilizer_produced * 3.1,
+    conventional_co2_waste      = kg_waste_processed     * 0.9,
+    conventional_co2_feed       = kg_larvae_produced     * 1.4,
+    conventional_co2_fertilizer = kg_fertilizer_produced * 2.15,
     bsf_co2_waste               = kg_waste_processed     * 0.025,
     bsf_co2_feed                = kg_larvae_produced     * 0.52,
     bsf_co2_fertilizer          = 0,
