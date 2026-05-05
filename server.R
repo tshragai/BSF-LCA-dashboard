@@ -49,7 +49,7 @@ server <- function(input, output, session) {
   output$val_waste1      <- renderText(paste0(comma(sum(dat1()$kg_waste_processed,    na.rm=TRUE), accuracy=1), " kg"))
   output$val_larvae1     <- renderText(paste0(comma(sum(dat1()$kg_larvae_produced,     na.rm=TRUE), accuracy=1), " kg"))
   output$val_fertilizer1 <- renderText(paste0(comma(sum(dat1()$kg_fertilizer_produced, na.rm=TRUE), accuracy=1), " kg"))
-  output$val_eggs1       <- renderText(paste0(comma(sum(dat1()$monthly_eggs,           na.rm=TRUE), accuracy=1), " chicken eggs"))
+  output$val_eggs1       <- renderText(paste0(comma(sum(dat1()$monthly_eggs,           na.rm=TRUE), accuracy=1), " eggs"))
 
   # ── Tab 1: plots ────────────────────────────────────────────────────────────
   output$plot_waste <- renderPlot({

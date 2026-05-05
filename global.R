@@ -197,11 +197,11 @@ month_choices <- setNames(
 )
 
 # ── Color palette ──────────────────────────────────────────────────────────────
-col_waste      <- col_co2_waste  <- "#B6843D"  # Warm brown/gold
-col_larvae     <- col_co2_feed   <- "#6B7A60"  # Muted sage green (darkened)
-col_fertilizer <- col_co2_fert   <- "#EA5137"  # Coral red
-col_eggs                         <- "#D4A843"  # Warm golden yellow
-col_co2_total                    <- "#3B7A57"  # Forest green (total CO₂ averted)
+col_waste      <- col_co2_waste  <- "#E8A535"  # HERI amber
+col_larvae     <- col_co2_feed   <- "#7A9530"  # HERI olive green
+col_fertilizer <- col_co2_fert   <- "#E05530"  # HERI orange-red
+col_eggs                         <- "#C84040"  # HERI crimson
+col_co2_total                    <- "#3B8CB5"  # HERI steel blue (total CO₂ averted)
 
 # ── Charts ─────────────────────────────────────────────────────────────────────
 
@@ -264,7 +264,7 @@ make_comparison_chart <- function(data, conv_col, bsf_col, title, bsf_color) {
 
   ggplot(plot_data, aes(x = month_label, y = value, fill = type)) +
     geom_col(position = position_dodge(width = 0.8), color = "#555555", alpha = 0.8, width = 0.38) +
-    scale_fill_manual(values = c("Conventional" = "#7A9BB5", "BSF" = bsf_color)) +
+    scale_fill_manual(values = c("Conventional" = "#7040A0", "BSF" = bsf_color)) +
     scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.05))) +
     labs(title = title, x = "Month", y = "KG CO\u2082", fill = NULL) +
     theme_dash() +

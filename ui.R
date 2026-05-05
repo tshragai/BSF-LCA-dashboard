@@ -44,7 +44,7 @@ ui <- navbarPage(
       /* ── Navbar ── */
       .navbar {
         background-color: #ffffff !important;
-        border-bottom: 2px solid #B6843D;
+        border-bottom: 2px solid #E8A535;
         box-shadow: 0 2px 10px rgba(0,0,0,0.06);
         min-height: 150px;
       }
@@ -79,14 +79,14 @@ ui <- navbarPage(
         text-align: center;
         padding: 40px 24px 44px;
         margin: 0 6px 24px;
-        border-top: 4px solid #3B7A57;
+        border-top: 4px solid #3B8CB5;
       }
       .hero-label {
         font-size: 18px; font-weight: 600; color: #666;
         margin-bottom: 16px; letter-spacing: 0.1px;
       }
       .hero-value {
-        font-size: 64px; font-weight: 700; color: #3B7A57;
+        font-size: 64px; font-weight: 700; color: #3B8CB5;
         line-height: 1; margin: 0;
       }
 
@@ -100,7 +100,10 @@ ui <- navbarPage(
       }
 
       /* ── Stat cards ── */
+      .stat-row.row { display: flex; flex-wrap: wrap; }
+      .stat-row.row > [class*='col-'] { display: flex; flex-direction: column; }
       .stat-card {
+        flex: 1;
         background: #ffffff;
         border-radius: 14px;
         box-shadow: 0 2px 14px rgba(0,0,0,0.07);
@@ -166,7 +169,7 @@ ui <- navbarPage(
       .info-box {
         margin: 8px 8px 24px;
         padding: 20px 28px;
-        border-left: 4px solid #B6843D;
+        border-left: 4px solid #E8A535;
         color: #777; font-size: 14px; font-style: italic;
         background: #ffffff;
         border-radius: 0 14px 14px 0;
@@ -180,7 +183,7 @@ ui <- navbarPage(
   tabPanel("Farm Production",
     div(class = "date-select", date_selector("start1", "end1")),
     div(class = "section-title", "Farm Production"),
-    fluidRow(
+    fluidRow(class = "stat-row",
       column(3, stat_card("lbl_waste1",      "val_waste1",      col_waste)),
       column(3, stat_card("lbl_larvae1",     "val_larvae1",     col_larvae)),
       column(3, stat_card("lbl_fertilizer1", "val_fertilizer1", col_fertilizer)),
@@ -237,7 +240,7 @@ ui <- navbarPage(
 
     # \u2500\u2500 Block 2: Breakdown by category \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     div(class = "breakdown-title", "Breakdown by Category"),
-    fluidRow(
+    fluidRow(class = "stat-row",
       column(4, stat_card("lbl_co2_waste2",     "val_co2_waste2",      col_co2_waste)),
       column(4, stat_card("lbl_co2_feed2",       "val_co2_feed2",       col_co2_feed)),
       column(4, stat_card("lbl_co2_fertilizer2", "val_co2_fertilizer2", col_co2_fert))
