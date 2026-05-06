@@ -26,25 +26,22 @@ ui <- navbarPage(
   title = tags$span(
     tags$img(src = "HERI-logo-FINAL-RGB.webp", height = "120px",
              style = "margin-right: 16px; vertical-align: middle;"),
-    "BSF Farm LCA Dashboard"
+    "Black Soldier Fly (BSF) Farm Life Cycle Analysis (LCA) Dashboard"
   ),
 
   tags$head(
-    tags$link(rel = "stylesheet",
-      href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"),
-
     tags$style(HTML("
 
       /* ── Base ── */
       body, .navbar, h1, h2, h3, h4, label, .selectize-input {
-        font-family: 'Inter', sans-serif !important;
+        font-family: 'Avenir Next', 'Avenir', 'Nunito Sans', sans-serif !important;
       }
       body { background-color: #f8f7f5; }
 
       /* ── Navbar ── */
       .navbar {
         background-color: #ffffff !important;
-        border-bottom: 2px solid #E8A535;
+        border-bottom: 2px solid #F6AE2D;
         box-shadow: 0 2px 10px rgba(0,0,0,0.06);
         min-height: 150px;
       }
@@ -79,14 +76,14 @@ ui <- navbarPage(
         text-align: center;
         padding: 40px 24px 44px;
         margin: 0 6px 24px;
-        border-top: 4px solid #3B8CB5;
+        border-top: 4px solid #0081A7;
       }
       .hero-label {
         font-size: 18px; font-weight: 600; color: #666;
         margin-bottom: 16px; letter-spacing: 0.1px;
       }
       .hero-value {
-        font-size: 64px; font-weight: 700; color: #3B8CB5;
+        font-size: 64px; font-weight: 700; color: #0081A7;
         line-height: 1; margin: 0;
       }
 
@@ -135,7 +132,7 @@ ui <- navbarPage(
       }
       .toggle-wrap .btn-group > .btn {
         border-radius: 0 !important;
-        font-family: 'Inter', sans-serif !important;
+        font-family: 'Avenir Next', 'Avenir', 'Nunito Sans', sans-serif !important;
         font-weight: 600; font-size: 13px;
         padding: 9px 24px; border: none;
         transition: background 0.15s, color 0.15s;
@@ -157,7 +154,7 @@ ui <- navbarPage(
       #dl_csv {
         position: fixed; top: 11px; right: 20px; z-index: 9999;
         background: #222; color: white; border: none;
-        font-family: 'Inter', sans-serif !important;
+        font-family: 'Avenir Next', 'Avenir', 'Nunito Sans', sans-serif !important;
         font-weight: 600; font-size: 13px;
         padding: 7px 18px; border-radius: 50px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.18);
@@ -169,7 +166,7 @@ ui <- navbarPage(
       .info-box {
         margin: 8px 8px 24px;
         padding: 20px 28px;
-        border-left: 4px solid #E8A535;
+        border-left: 4px solid #F6AE2D;
         color: #777; font-size: 14px; font-style: italic;
         background: #ffffff;
         border-radius: 0 14px 14px 0;
@@ -213,6 +210,15 @@ ui <- navbarPage(
   tabPanel("CO\u2082 Emissions Averted",
     div(class = "date-select", date_selector("start2", "end2")),
     div(class = "section-title", "CO\u2082 Emissions Averted"),
+    div(class = "toggle-wrap",
+      radioGroupButtons(
+        inputId  = "co2_threshold",
+        label    = NULL,
+        choices  = c("Lower Threshold" = "lower", "Mean (Default)" = "mean", "Upper Threshold" = "upper"),
+        selected = "mean",
+        status   = "default"
+      )
+    ),
 
     # \u2500\u2500 Block 1: Hero total + cumulative chart \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     fluidRow(
@@ -249,7 +255,7 @@ ui <- navbarPage(
       radioGroupButtons(
         inputId  = "chart_mode",
         label    = NULL,
-        choices  = c("KG CO\u2082 Averted" = "averted",
+        choices  = c("Monthly CO\u2082 Averted" = "averted",
                      "Conventional vs BSF" = "comparison",
                      "Cumulative CO\u2082 Averted" = "cumulative"),
         selected = "averted",
@@ -262,7 +268,7 @@ ui <- navbarPage(
       column(4, chart_card(plotOutput("plot_co2_fertilizer", height = "400px")))
     ),
     div(class = "info-box",
-      "CO\u2082-equivalent values were calculated using a gate-to-gate Life Cycle Assessment (LCA) framework covering organic waste collection, black soldier fly (BSF) bioconversion, and processing into larvae and frass. Emission factors were sourced from established databases and models (e.g., EPA WARM, GREET, and Ecoinvent) and applied to defined functional units based on observed production data. Averted emissions were estimated through system expansion by comparing BSF outputs to conventional landfill disposal, imported animal feed, and synthetic fertilizer production. Conventional CO\u2082 emission factors represent the mean of the upper and lower threshold estimates from the source literature."
+      "CO\u2082-equivalent values were calculated using a gate-to-gate Life Cycle Assessment (LCA) framework covering organic waste collection, black soldier fly (BSF) bioconversion, and processing into larvae and frass. Emission factors were sourced from established databases and models (e.g., EPA WARM, GREET, and Ecoinvent) and applied to defined functional units based on observed production data. Averted emissions were estimated through system expansion by comparing BSF outputs to conventional landfill disposal, imported animal feed, and synthetic fertilizer production. Conventional CO\u2082 emission factors can be toggled between lower threshold (0.6, 1.1, 1.2 kg CO\u2082/kg for waste, feed, and fertilizer respectively), mean (0.9, 1.4, 2.15), and upper threshold (1.2, 1.7, 3.1) estimates from the source literature. Mean values are shown by default."
     )
   )
 )

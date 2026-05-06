@@ -93,12 +93,17 @@ tryCatch({
   meta_path  <- "outputs/file_metadata.rds"
   cached_meta <- if (file.exists(meta_path)) readRDS(meta_path) else setNames(list(), character(0))
 
-  cached_raw <- if (file.exists("outputs/lca_data.csv")) {
-    read.csv("outputs/lca_data.csv") |>
-      select(month_year, kg_waste_processed, kg_larvae_produced, kg_fertilizer_produced)
+  cached_csv <- if (file.exists("outputs/lca_data.csv")) read.csv("outputs/lca_data.csv") else NULL
+  cached_raw <- if (!is.null(cached_csv)) {
+    cached_csv |> select(month_year, kg_waste_processed, kg_larvae_produced, kg_fertilizer_produced)
   } else {
     tibble(month_year = character(), kg_waste_processed = numeric(),
            kg_larvae_produced = numeric(), kg_fertilizer_produced = numeric())
+  }
+  cached_eggs <- if (!is.null(cached_csv) && "monthly_eggs" %in% names(cached_csv)) {
+    cached_csv |> select(month_year, monthly_eggs) |> filter(!is.na(monthly_eggs))
+  } else {
+    tibble(month_year = character(), monthly_eggs = numeric())
   }
 
   # ── Compare Drive modifiedTime against cache ──────────────────────────────
@@ -142,9 +147,19 @@ tryCatch({
     read_eggs_monthly(eggs_sheet_id),
     error = function(e) {
       message("Could not read egg data: ", conditionMessage(e))
-      tibble(month_year = character(), monthly_eggs = NA_real_)
+      tibble(month_year = character(), monthly_eggs = numeric())
     }
   )
+  # Fall back to cached eggs for any months where fresh read returned nothing
+  if (nrow(eggs_data) == 0) {
+    message("Using cached egg counts.")
+    eggs_data <- cached_eggs
+  } else {
+    missing_my <- setdiff(lca_data$month_year, eggs_data$month_year)
+    if (length(missing_my) > 0) {
+      eggs_data <- bind_rows(eggs_data, filter(cached_eggs, month_year %in% missing_my))
+    }
+  }
   lca_data <- lca_data |> left_join(eggs_data, by = "month_year")
 
   write.csv(lca_data, "outputs/lca_data.csv", row.names = FALSE)
@@ -196,17 +211,24 @@ month_choices <- setNames(
   format(lca_data$date, "%B %Y")
 )
 
+# ── CO₂ conventional emission factor thresholds (kg CO₂ per kg output) ────────
+co2_thresholds <- list(
+  lower = list(conv_waste = 0.6,  conv_feed = 1.1, conv_fertilizer = 1.2),
+  mean  = list(conv_waste = 0.9,  conv_feed = 1.4, conv_fertilizer = 2.15),
+  upper = list(conv_waste = 1.2,  conv_feed = 1.7, conv_fertilizer = 3.1)
+)
+
 # ── Color palette ──────────────────────────────────────────────────────────────
-col_waste      <- col_co2_waste  <- "#E8A535"  # HERI amber
-col_larvae     <- col_co2_feed   <- "#7A9530"  # HERI olive green
-col_fertilizer <- col_co2_fert   <- "#E05530"  # HERI orange-red
-col_eggs                         <- "#C84040"  # HERI crimson
-col_co2_total                    <- "#3B8CB5"  # HERI steel blue (total CO₂ averted)
+col_waste      <- col_co2_waste  <- "#F6AE2D"  # HERI amber
+col_larvae     <- col_co2_feed   <- "#75980B"  # HERI green
+col_fertilizer <- col_co2_fert   <- "#E94F37"  # HERI orange-red
+col_eggs                         <- "#0081A7"  # HERI blue
+col_co2_total                    <- "#0081A7"  # HERI blue (total CO₂ averted)
 
 # ── Charts ─────────────────────────────────────────────────────────────────────
 
 theme_dash <- function() {
-  theme_minimal(base_family = "sans") +
+  theme_minimal(base_family = "Avenir Next") +
     theme(
       plot.background    = element_rect(fill = "white", color = NA),
       panel.background   = element_rect(fill = "white", color = NA),
@@ -264,7 +286,7 @@ make_comparison_chart <- function(data, conv_col, bsf_col, title, bsf_color) {
 
   ggplot(plot_data, aes(x = month_label, y = value, fill = type)) +
     geom_col(position = position_dodge(width = 0.8), color = "#555555", alpha = 0.8, width = 0.38) +
-    scale_fill_manual(values = c("Conventional" = "#7040A0", "BSF" = bsf_color)) +
+    scale_fill_manual(values = c("Conventional" = "#662C91", "BSF" = bsf_color)) +
     scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.05))) +
     labs(title = title, x = "Month", y = "KG CO\u2082", fill = NULL) +
     theme_dash() +
